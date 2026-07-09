@@ -37,7 +37,13 @@ export function buildChatSystemPrompt(ctx: PromptContext): string {
 
   return `You are a document consultant inside a browser document studio for freelancers and agencies. The user is preparing ${DOC_GUIDANCE[ctx.docType]}
 
-Your job in this chat is to help them shape it: discuss scope, suggest phases and steps, help formulate fair prices, spot missing information, and summarize decisions. Be concise and concrete — short paragraphs or tight bullet lists, no fluff. Ask at most one focused question per reply when something essential is missing.
+Your job in this chat is to help them shape it: discuss scope, suggest phases and steps, help formulate fair prices, spot missing information, and summarize decisions. Be concise and concrete — short paragraphs, tight bullet lists, or small GFM tables. Replies render as pure markdown: never use HTML tags (<br>, <b>, <table> …) — use markdown line breaks, bold, and tables instead. Ask at most one focused question per reply when something essential is missing.
+
+When that focused question has a small set of likely answers, append at the VERY END of your reply a fenced code block tagged "question" containing JSON, exactly like:
+\`\`\`question
+{"question":"Which platforms should the MVP support?","options":["iOS only","Android only","iOS + Android","Web + mobile"]}
+\`\`\`
+Use 2–5 short options. The app renders this as clickable choices, so don't also list the options in your prose. Skip the block entirely for open-ended questions.
 
 ${profileLine} ${clientLine}
 
@@ -66,13 +72,20 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 
   return `You are the document-generation engine inside a browser-only document studio for freelancers and small agencies. You turn a natural-language request (plus any attached reference documents) into a beautiful, print-ready document.
 
-You must reply with ONLY a single JSON object (no prose, no markdown code fences) matching exactly one of these two shapes:
+You must reply in exactly one of these two formats and nothing else:
 
-1. When required information is missing:
+1. When required information is missing — a single JSON object, no fences, no prose:
 {"status":"needs_info","missingFields":["recipientName","..."],"message":"one short sentence asking for what's missing"}
 
-2. When you have everything needed:
-{"status":"ready","html":"<!DOCTYPE html>...full standalone document...","meta":{"title":"...","subtitle":"...","total":123.45,"currency":"NGN"}}
+2. When you have everything needed — TWO fenced blocks, first the metadata, then the document:
+\`\`\`json
+{"status":"ready","meta":{"title":"...","subtitle":"...","total":123.45,"currency":"NGN"}}
+\`\`\`
+\`\`\`html
+<!DOCTYPE html>
+... the full standalone document, written as normal multi-line HTML ...
+\`\`\`
+CRITICAL: never place the HTML inside a JSON string — it always goes in its own \`\`\`html fence as plain multi-line HTML. No text outside these blocks.
 
 The document to produce this turn is ${DOC_GUIDANCE[ctx.docType]}
 
@@ -81,9 +94,14 @@ Rules:
 - Invoice numbers, doc reference numbers, and dates may be generated sensibly if not specified (e.g. today's date).
 - ${senderKnown}
 - ${clientKnown}
-- When status is "ready", "html" MUST be a COMPLETE standalone HTML document: <!DOCTYPE html>, <html>, a <head> with an inline <style> block (no external stylesheets, fonts, images, or scripts), and a <body>. Target ~800px content width, generous whitespace, clear typographic hierarchy, and clean tables with subtle borders/zebra rows. It should look like a polished professional document, not a web page.
+- When status is "ready", the html fence MUST contain a COMPLETE standalone HTML document: <!DOCTYPE html>, <html>, <head>, <body> — no external stylesheets, fonts, images, or scripts. It must look like a polished, print-ready business document (an "artifact"), not a web page.
+- In <head>, write EXACTLY this style tag — do NOT write out any CSS yourself, the app substitutes the real stylesheet for the placeholder:
+<style>{{DESIGN_CSS}}</style>
+(You may add ONE extra small <style> block after it only if the user asked for a different look.)
+- The stylesheet you're building against defines these classes — use them; don't invent your own:
+  .page (wrap everything in <div class="page">) · .doc-header with h1 + .subtitle + .date (centered title block) · hr.rule (section separator) · h2.section (section headings) · .kv-line with b and span.due (lines like "Cost: ₦1,000,000 | Paid: ₦500,000 | <span class='due'>Balance due: ₦500,000</span>") · table.grid for EVERY tabular listing (th are dark-headed; add class "num" to money/number cells, td.paid for amounts paid, td.owed for outstanding amounts, and finish summary tables with <tr class="total">) · .badge with modifier classes critical/high/medium/low (severity), done/pending (status), scope/chargeable (billing) · .callout (the headline figure — total due / outstanding / project total; .callout.ok for positive figures) · .note (small muted text).
 - Respect the currency the user uses (e.g. ₦/NGN, $/USD). Format money consistently with thousands separators.
-- Default palette unless the user asks otherwise: deep bordeaux #4a051c and granite #4e6766 for headings/bands, lobster #c1666b as accent, willow #a5c882 and jasmine #f7dd72 for highlights, on white. Keep it legible and professional.
+- If the user asks for a different colour mood, adjust the accent colours in your appended CSS, keeping the same structure and legibility.
 - "meta.title" is the document's title; "meta.total" (a plain number) is the headline amount if the document has one (invoice total, outstanding balance, proposal total), else omit it.
 - Output raw JSON only. No markdown fences, no text outside the JSON object.${contextBlock}`;
 }

@@ -5,58 +5,46 @@ import type {
   AiSettings,
   BusinessProfile,
   ChatMessage,
-  Client,
   DocContext,
   DocType,
   InvoiceData,
-  SavedInvoice,
+  SessionDoc,
   TemplateId,
 } from "../../lib/types";
 import {
-  listClients,
-  saveClient,
-  deleteClient,
-  listInvoices,
-  saveInvoice,
-  deleteInvoice,
-} from "../../lib/db";
-import { loadProfile, saveProfile, loadAiSettings, saveAiSettings } from "../../lib/storage";
+  loadProfile,
+  saveProfile,
+  loadAiSettings,
+  saveAiSettings,
+} from "../../lib/storage";
 import { renderTemplate } from "../../lib/templates";
-import { generateDocument, chatReply, PROVIDER_LABELS, AiResponseParseError } from "../../lib/ai";
+import { grandTotal } from "../../lib/templates/shared";
+import {
+  generateDocument,
+  chatReply,
+  PROVIDER_LABELS,
+  AiResponseParseError,
+} from "../../lib/ai";
 import { extractContext } from "../../lib/pdfExtract";
 
-const FREE_SETTINGS: AiSettings = { provider: "pollinations", apiKey: "", model: "openai" };
-
-import ClientPanel from "./ClientPanel";
-import InvoiceHistory from "./InvoiceHistory";
+import SessionFolder from "./SessionFolder";
 import InvoiceForm from "./InvoiceForm";
 import ChatPanel from "./ChatPanel";
 import PreviewPane from "./PreviewPane";
 import ProviderSettingsModal from "./ProviderSettingsModal";
 import MissingFieldsModal from "./MissingFieldsModal";
 
-type Mode = "manual" | "ai";
+const FREE_SETTINGS: AiSettings = {
+  provider: "puter",
+  apiKey: "",
+  model: "gpt-4o-mini",
+};
 
-interface CurrentDoc {
-  html: string;
-  title?: string;
-  docType?: DocType;
-  invoiceNumber: string;
-  clientName: string;
-  total: number;
-  currency: string;
-  dueDate: string;
-  source: "manual" | "ai";
-  templateId?: TemplateId;
-}
+type Mode = "ai" | "manual";
 
 export default function Workspace() {
-  const [mode, setMode] = useState<Mode>("manual");
+  const [mode, setMode] = useState<Mode>("ai");
   const [ready, setReady] = useState(false);
-
-  const [clients, setClients] = useState<Client[]>([]);
-  const [invoices, setInvoices] = useState<SavedInvoice[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<BusinessProfile>({
     businessName: "",
@@ -73,31 +61,46 @@ export default function Workspace() {
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
-  const [missingFields, setMissingFields] = useState<{ message: string; fields: string[] } | null>(null);
+  const [missingFields, setMissingFields] = useState<{
+    message: string;
+    fields: string[];
+  } | null>(null);
 
-  const [current, setCurrent] = useState<CurrentDoc | null>(null);
-  const [saved, setSaved] = useState(false);
+  // Session-only: every generated document lands here; nothing is persisted.
+  // To continue work in a later session, users attach exported files as context.
+  const [sessionDocs, setSessionDocs] = useState<SessionDoc[]>([]);
+  const [current, setCurrent] = useState<SessionDoc | null>(null);
 
   useEffect(() => {
-    (async () => {
-      const [c, i] = await Promise.all([listClients(), listInvoices()]);
-      setClients(c);
-      setInvoices(i);
-      setProfile(loadProfile());
-      setAiSettings(loadAiSettings() ?? FREE_SETTINGS);
-      setReady(true);
-    })();
+    setProfile(loadProfile());
+    setAiSettings(loadAiSettings() ?? FREE_SETTINGS);
+    setReady(true);
   }, []);
+
+  function addSessionDoc(doc: Omit<SessionDoc, "id" | "createdAt">): void {
+    const record: SessionDoc = {
+      ...doc,
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+    };
+    setSessionDocs((prev) => [record, ...prev]);
+    setCurrent(record);
+  }
 
   async function handleAddFiles(files: FileList) {
     setContextBusy(true);
     setContextError(null);
     try {
-      const results = await Promise.all(Array.from(files).map((f) => extractContext(f)));
+      const results = await Promise.all(
+        Array.from(files).map((f) => extractContext(f))
+      );
       setContexts((prev) => [...prev, ...results]);
     } catch (err) {
-      setContextError(err instanceof Error ? err.message : "Couldn't read that file.");
+      setContextError(
+        err instanceof Error ? err.message : "Couldn't read that file."
+      );
     } finally {
       setContextBusy(false);
     }
@@ -107,47 +110,21 @@ export default function Workspace() {
     setContexts((prev) => prev.filter((_, i) => i !== index));
   }
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId) ?? null;
-
   function handleProfileChange(next: BusinessProfile) {
     setProfile(next);
     saveProfile(next);
   }
 
-  async function handleSaveClient(client: Omit<Client, "id" | "createdAt"> & { id?: string }) {
-    const record = await saveClient(client);
-    setClients((prev) => {
-      const exists = prev.some((c) => c.id === record.id);
-      const next = exists ? prev.map((c) => (c.id === record.id ? record : c)) : [record, ...prev];
-      return next;
-    });
-  }
-
-  async function handleDeleteClient(id: string) {
-    await deleteClient(id);
-    setClients((prev) => prev.filter((c) => c.id !== id));
-    if (selectedClientId === id) setSelectedClientId(null);
-  }
-
-  async function handleImportClients(newClients: Array<Omit<Client, "id" | "createdAt">>) {
-    const saved = await Promise.all(newClients.map((c) => saveClient(c)));
-    setClients((prev) => [...saved, ...prev]);
-  }
-
   function handleManualGenerate(invoice: InvoiceData, templateId: TemplateId) {
     const html = renderTemplate(templateId, invoice);
-    const total = invoice.items.reduce((sum, it) => sum + it.quantity * it.rate, 0) * (1 + invoice.taxRate / 100);
-    setCurrent({
+    addSessionDoc({
       html,
-      invoiceNumber: invoice.invoiceNumber,
-      clientName: invoice.client.name,
-      total,
+      title: `${invoice.invoiceNumber} — ${invoice.client.name}`,
+      docType: "invoice",
+      total: grandTotal(invoice.items, invoice.taxRate),
       currency: invoice.currency,
-      dueDate: invoice.dueDate,
       source: "manual",
-      templateId,
     });
-    setSaved(false);
   }
 
   // Conversational turn — the assistant helps shape scope/pricing, plain text reply.
@@ -159,13 +136,17 @@ export default function Workspace() {
         settings: aiSettings,
         history,
         profile,
-        client: selectedClient,
+        client: null,
         docType,
         contexts,
       });
       setChatMessages([...history, { role: "assistant", content: reply }]);
     } catch (err) {
-      setChatError(err instanceof Error ? err.message : "Something went wrong talking to the AI provider.");
+      setChatError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong talking to the AI provider."
+      );
     } finally {
       setChatBusy(false);
     }
@@ -188,38 +169,42 @@ export default function Workspace() {
           },
         ],
         profile,
-        client: selectedClient,
+        client: null,
         docType,
         contexts,
       });
 
       if (response.status === "needs_info") {
-        setChatMessages([...history, { role: "assistant", content: response.message }]);
-        setMissingFields({ message: response.message, fields: response.missingFields });
+        setChatMessages([
+          ...history,
+          { role: "assistant", content: response.message },
+        ]);
+        setMissingFields({
+          message: response.message,
+          fields: response.missingFields,
+        });
       } else {
         const total = response.meta.total;
         const currency = response.meta.currency ?? "";
         const amountLine =
-          typeof total === "number" ? ` — ${currency} ${total.toLocaleString()}`.trimEnd() : "";
+          typeof total === "number"
+            ? ` — ${currency} ${total.toLocaleString()}`.trimEnd()
+            : "";
         setChatMessages([
           ...history,
           {
             role: "assistant",
-            content: `Done — "${response.meta.title}"${amountLine}.`,
+            content: `Done — "${response.meta.title}"${amountLine}. It's in your session folder.`,
           },
         ]);
-        setCurrent({
+        addSessionDoc({
           html: response.html,
           title: response.meta.title,
           docType,
-          invoiceNumber: "",
-          clientName: response.meta.subtitle ?? selectedClient?.name ?? "",
           total: typeof total === "number" ? total : 0,
           currency,
-          dueDate: "",
           source: "ai",
         });
-        setSaved(false);
         setMissingFields(null);
       }
     } catch (err) {
@@ -232,6 +217,7 @@ export default function Workspace() {
       setChatError(message);
     } finally {
       setChatBusy(false);
+      setGenerating(false);
     }
   }
 
@@ -241,71 +227,38 @@ export default function Workspace() {
     void runChat(history);
   }
 
+  function handleGenerate() {
+    void runGenerate(chatMessages);
+  }
+
   function handleMissingFieldsSubmit(values: Record<string, string>) {
     setMissingFields(null);
     const summary = Object.entries(values)
       .map(([field, value]) => `${field}: ${value}`)
       .join("; ");
-    const history = [...chatMessages, { role: "user" as const, content: `Here's the missing info — ${summary}` }];
+    const history = [
+      ...chatMessages,
+      { role: "user" as const, content: `Here's the missing info — ${summary}` },
+    ];
     setChatMessages(history);
-    void runChat(history);
-  }
-
-  async function handleSaveCurrent() {
-    if (!current) return;
-    const record = await saveInvoice({
-      title: current.title,
-      docType: current.docType,
-      clientName: current.clientName,
-      invoiceNumber: current.invoiceNumber,
-      total: current.total,
-      currency: current.currency,
-      dueDate: current.dueDate,
-      html: current.html,
-      source: current.source,
-      templateId: current.templateId,
-    });
-    setInvoices((prev) => [record, ...prev]);
-    setSaved(true);
-  }
-
-  function handleOpenInvoice(invoice: SavedInvoice) {
-    setCurrent({
-      html: invoice.html,
-      title: invoice.title,
-      docType: invoice.docType,
-      invoiceNumber: invoice.invoiceNumber,
-      clientName: invoice.clientName,
-      total: invoice.total,
-      currency: invoice.currency,
-      dueDate: invoice.dueDate,
-      source: invoice.source,
-      templateId: invoice.templateId,
-    });
-    setSaved(true);
-  }
-
-  async function handleDeleteInvoice(id: string) {
-    await deleteInvoice(id);
-    setInvoices((prev) => prev.filter((i) => i.id !== id));
+    void runGenerate(history);
   }
 
   if (!ready) {
-    return <div className="flex flex-1 items-center justify-center text-sm text-granite">Loading…</div>;
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-granite">
+        Loading…
+      </div>
+    );
   }
 
   return (
-    <div className="flex min-h-225 flex-col bg-white">
+    <div className="flex flex-col bg-white lg:h-screen lg:max-h-screen lg:overflow-hidden">
       <header className="flex items-center justify-between border-b border-black/5 px-6 py-3">
-        <span className="text-sm font-semibold text-granite">Your document workspace</span>
+        <span className="text-sm font-semibold text-granite">
+          Your document workspace
+        </span>
         <div className="flex rounded-full bg-black/5 p-1 text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => setMode("manual")}
-            className={`rounded-full px-4 py-1.5 ${mode === "manual" ? "bg-white shadow-sm text-night-bordeaux" : "text-granite"}`}
-          >
-            Manual invoice
-          </button>
           <button
             type="button"
             onClick={() => setMode("ai")}
@@ -313,31 +266,33 @@ export default function Workspace() {
           >
             AI documents
           </button>
+          <button
+            type="button"
+            onClick={() => setMode("manual")}
+            className={`rounded-full px-4 py-1.5 ${mode === "manual" ? "bg-white shadow-sm text-night-bordeaux" : "text-granite"}`}
+          >
+            Manual invoice
+          </button>
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-1 gap-6 p-6 lg:grid-cols-[260px_1fr_1fr] lg:h-180">
-        <aside className="flex flex-col gap-6 overflow-y-auto">
-          <ClientPanel
-            clients={clients}
-            selectedClientId={selectedClientId}
-            onSelect={setSelectedClientId}
-            onSave={handleSaveClient}
-            onDelete={handleDeleteClient}
-            onImport={handleImportClients}
+      {/* On lg the single row is minmax(0,1fr): exactly the leftover viewport
+          height, never content-sized — children must scroll internally. */}
+      <div className="grid flex-1 grid-cols-1 gap-6 p-6 lg:min-h-0 lg:grid-cols-[230px_1.15fr_1fr] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="overflow-y-auto lg:min-h-0">
+          <SessionFolder
+            docs={sessionDocs}
+            activeId={current?.id ?? null}
+            onOpen={setCurrent}
           />
-          <div>
-            <h3 className="mb-2 text-sm font-semibold text-night-bordeaux">History</h3>
-            <InvoiceHistory invoices={invoices} onOpen={handleOpenInvoice} onDelete={handleDeleteInvoice} />
-          </div>
         </aside>
 
-        <section className="overflow-hidden">
+        <section className="h-150 overflow-hidden lg:h-full lg:min-h-0">
           {mode === "manual" ? (
             <InvoiceForm
               profile={profile}
               onProfileChange={handleProfileChange}
-              selectedClient={selectedClient}
+              selectedClient={null}
               onGenerate={handleManualGenerate}
             />
           ) : (
@@ -354,17 +309,17 @@ export default function Workspace() {
               onAddFiles={handleAddFiles}
               onRemoveContext={handleRemoveContext}
               onSend={handleSendChat}
+              onGenerate={handleGenerate}
+              generating={generating}
               onOpenSettings={() => setProviderModalOpen(true)}
             />
           )}
         </section>
 
-        <section className="overflow-hidden">
+        <section className="h-150 overflow-hidden lg:h-full lg:min-h-0">
           <PreviewPane
             html={current?.html ?? null}
-            invoiceNumber={current?.title ?? current?.invoiceNumber ?? null}
-            onSave={handleSaveCurrent}
-            saved={saved}
+            invoiceNumber={current?.title ?? null}
           />
         </section>
       </div>

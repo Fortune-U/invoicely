@@ -1,7 +1,68 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { DOC_TYPES, type ChatMessage, type DocContext, type DocType } from "../../lib/types";
+
+interface ParsedAssistant {
+  body: string;
+  question?: { question: string; options: string[] };
+}
+
+// Assistant replies may end with a ```question fenced block (see prompt.ts)
+// describing a focused question with discrete options — rendered as buttons.
+function parseAssistant(content: string): ParsedAssistant {
+  const match = content.match(/```question\s*([\s\S]*?)```/i);
+  if (!match) return { body: content };
+  const body = content.replace(match[0], "").trim();
+  try {
+    const q = JSON.parse(match[1]);
+    if (typeof q?.question === "string" && Array.isArray(q?.options)) {
+      const options = q.options
+        .filter((o: unknown): o is string => typeof o === "string" && o.trim().length > 0)
+        .slice(0, 5);
+      if (options.length >= 2) return { body, question: { question: q.question, options } };
+    }
+  } catch {
+    // malformed block — just hide it
+  }
+  return { body };
+}
+
+function Markdown({ text }: { text: string }) {
+  // Models sometimes emit raw HTML line breaks; react-markdown (rightly)
+  // doesn't render raw HTML, so convert them to real newlines first.
+  const cleaned = text.replace(/<br\s*\/?>/gi, "\n");
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkBreaks]}
+      components={{
+        p: (props) => <p className="my-1 leading-relaxed" {...props} />,
+        ul: (props) => <ul className="my-1 list-disc space-y-0.5 pl-4" {...props} />,
+        ol: (props) => <ol className="my-1 list-decimal space-y-0.5 pl-4" {...props} />,
+        strong: (props) => <strong className="font-semibold" {...props} />,
+        h1: (props) => <p className="mt-2 mb-1 text-sm font-bold" {...props} />,
+        h2: (props) => <p className="mt-2 mb-1 text-sm font-bold" {...props} />,
+        h3: (props) => <p className="mt-2 mb-1 text-sm font-bold" {...props} />,
+        code: (props) => <code className="rounded bg-black/5 px-1 text-xs" {...props} />,
+        a: (props) => <a className="text-lobster-pink underline" target="_blank" rel="noreferrer" {...props} />,
+        table: (props) => (
+          <div className="my-2 overflow-x-auto">
+            <table className="w-full border-collapse text-xs" {...props} />
+          </div>
+        ),
+        th: (props) => (
+          <th className="border border-black/10 bg-black/5 px-2 py-1 text-left font-semibold" {...props} />
+        ),
+        td: (props) => <td className="border border-black/10 px-2 py-1 align-top" {...props} />,
+      }}
+    >
+      {cleaned}
+    </ReactMarkdown>
+  );
+}
 
 export default function ChatPanel({
   messages,
@@ -38,6 +99,13 @@ export default function ChatPanel({
 }) {
   const [text, setText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Keep the newest message in view; the list scrolls internally.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, busy]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,7 +197,10 @@ export default function ChatPanel({
         )}
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto rounded-lg border border-black/10 bg-[#faf9f6] p-4">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg border border-black/10 bg-[#faf9f6] p-4"
+      >
         {messages.length === 0 && (
           <p className="text-sm text-granite">
             Chat with the AI to shape your{" "}
@@ -140,18 +211,49 @@ export default function ChatPanel({
             built from the whole conversation.
           </p>
         )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-              m.role === "user"
-                ? "ml-auto bg-night-bordeaux text-jasmine"
-                : "bg-white text-[#2a2a2a] shadow-sm"
-            }`}
-          >
-            {m.content}
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          if (m.role === "user") {
+            return (
+              <div
+                key={i}
+                className="ml-auto max-w-[85%] rounded-lg bg-night-bordeaux px-3 py-2 text-sm text-jasmine"
+              >
+                {m.content}
+              </div>
+            );
+          }
+          const parsed = parseAssistant(m.content);
+          const isLast = i === messages.length - 1;
+          return (
+            <div key={i} className="max-w-[92%] space-y-2">
+              {parsed.body && (
+                <div className="rounded-lg bg-white px-3 py-2 text-sm text-[#2a2a2a] shadow-sm">
+                  <Markdown text={parsed.body} />
+                </div>
+              )}
+              {parsed.question && (
+                <div className="rounded-lg border border-willow-300 bg-willow-50 px-3 py-2.5">
+                  <p className="text-sm font-semibold text-granite-800">
+                    {parsed.question.question}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {parsed.question.options.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        disabled={!isLast || busy}
+                        onClick={() => onSend(option)}
+                        className="rounded-full border border-willow-500 bg-white px-3 py-1 text-xs font-medium text-willow-800 transition hover:bg-willow-100 disabled:opacity-40"
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
         {busy && (
           <div className="max-w-[85%] rounded-lg bg-white px-3 py-2 text-sm text-granite shadow-sm">
             {generating

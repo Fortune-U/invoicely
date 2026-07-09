@@ -101,7 +101,7 @@ export default function InvoiceForm({
   const total = grandTotal(items, taxRate);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto pr-1">
+    <form onSubmit={handleSubmit} className="h-full space-y-5 overflow-y-auto pr-1">
       <fieldset className="space-y-2">
         <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-lobster-pink">
           Your business

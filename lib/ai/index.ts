@@ -7,10 +7,10 @@ import type {
   DocContext,
 } from "../types";
 import { buildSystemPrompt, buildChatSystemPrompt } from "./prompt";
-import { callProvider, DEFAULT_MODELS, PROVIDER_LABELS } from "./providers";
+import { callProvider, DEFAULT_MODELS, PROVIDER_LABELS, PROVIDER_HINTS, PROVIDER_MODELS } from "./providers";
 import { parseAiResponse, type AiResponse } from "./parseResponse";
 
-export { DEFAULT_MODELS, PROVIDER_LABELS };
+export { DEFAULT_MODELS, PROVIDER_LABELS, PROVIDER_HINTS, PROVIDER_MODELS };
 export type { AiResponse };
 export { AiResponseParseError } from "./parseResponse";
 

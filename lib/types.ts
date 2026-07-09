@@ -54,13 +54,15 @@ export interface SavedInvoice {
 
 export type AiProvider =
   | "pollinations"
+  | "puter"
   | "anthropic"
   | "openai"
   | "gemini"
+  | "grok"
   | "openrouter";
 
 // Providers that need no API key (someone else foots the bill / runs the model).
-export const KEYLESS_PROVIDERS: AiProvider[] = ["pollinations"];
+export const KEYLESS_PROVIDERS: AiProvider[] = ["pollinations", "puter"];
 
 export interface AiSettings {
   provider: AiProvider;
@@ -87,6 +89,19 @@ export const DOC_TYPES: DocTypeMeta[] = [
 export interface DocContext {
   name: string;
   text: string;
+}
+
+// A document generated during this session. Held in memory only — the app
+// stores nothing; continuity comes from re-attaching exported files as context.
+export interface SessionDoc {
+  id: string;
+  title: string;
+  docType?: DocType;
+  total: number;
+  currency: string;
+  html: string;
+  source: InvoiceSource;
+  createdAt: number;
 }
 
 export interface ChatMessage {

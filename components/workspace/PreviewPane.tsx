@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ComponentType } from "react";
-import { exportHtmlToPdf } from "../../lib/pdf";
+import { exportHtmlToPdf, printHtml } from "../../lib/pdf";
 import CubesImpl from "../Cubes";
 
 // Cubes is authored in JS with an untyped optional prop inferred as required.
@@ -21,13 +21,9 @@ const Cubes = CubesImpl as unknown as ComponentType<{
 export default function PreviewPane({
   html,
   invoiceNumber,
-  onSave,
-  saved,
 }: {
   html: string | null;
   invoiceNumber: string | null;
-  onSave: () => void;
-  saved: boolean;
 }) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -37,13 +33,25 @@ export default function PreviewPane({
     setExporting(true);
     setExportError(null);
     try {
-      await exportHtmlToPdf(html, `${invoiceNumber || "invoice"}.pdf`);
+      await exportHtmlToPdf(html, `${invoiceNumber || "document"}.pdf`);
     } catch (err) {
       setExportError(
         err instanceof Error ? err.message : "Could not export PDF."
       );
     } finally {
       setExporting(false);
+    }
+  }
+
+  function handlePrint() {
+    if (!html) return;
+    setExportError(null);
+    try {
+      printHtml(html);
+    } catch (err) {
+      setExportError(
+        err instanceof Error ? err.message : "Could not open the print window."
+      );
     }
   }
 
@@ -54,11 +62,11 @@ export default function PreviewPane({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={onSave}
-            disabled={!html || saved}
+            onClick={handlePrint}
+            disabled={!html}
             className="rounded-full border border-black/10 px-4 py-1.5 text-xs font-medium text-granite hover:bg-black/5 disabled:opacity-40"
           >
-            {saved ? "Saved" : "Save to history"}
+            Print
           </button>
           <button
             type="button"

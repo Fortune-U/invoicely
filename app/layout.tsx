@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Invoicely — Beautiful invoices, no signup",
+  title: "Invoicely — Proposals, pricing docs & invoices, no signup",
   description:
-    "Turn a form (or a sentence) into a beautiful invoice PDF. Templates, saved clients, and an optional AI chat that uses your own API key. No backend, no accounts.",
+    "Chat with AI to shape proposals, pricing breakdowns, follow-up summaries, and invoices — then export a polished PDF. Free AI built in, or bring your own key. Upload past documents for context. No accounts.",
 };
 
 export default function RootLayout({

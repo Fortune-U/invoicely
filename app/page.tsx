@@ -20,33 +20,33 @@ const Folder = FolderImpl as unknown as ComponentType<{
 
 const FEATURES = [
   {
-    emoji: "🧾",
-    title: "Form → PDF",
-    body: "Real vector text, not a screenshot.",
+    emoji: "💬",
+    title: "Chat it into shape",
+    body: "Talk through scope, steps, and pricing with AI — then generate the document from the whole conversation.",
     bg: "bg-jasmine-100",
     ring: "text-jasmine-800",
     tilt: "-rotate-2",
   },
   {
-    emoji: "🎨",
-    title: "Three templates",
-    body: "Minimal, Modern, Bold.",
+    emoji: "📑",
+    title: "Four document types",
+    body: "Proposals, pricing & scope breakdowns, follow-up summaries, and invoices.",
     bg: "bg-lobster-100",
     ring: "text-lobster-700",
     tilt: "rotate-1",
   },
   {
-    emoji: "💾",
-    title: "Clients on-device",
-    body: "Saved in your browser. Nothing to log into.",
+    emoji: "🆓",
+    title: "Free AI built in",
+    body: "No tokens? No problem — a free, keyless model works out of the box. Or paste your own key.",
     bg: "bg-willow-100",
     ring: "text-willow-800",
     tilt: "rotate-2",
   },
   {
-    emoji: "✨",
-    title: "Chat it into being",
-    body: "Your key, any model, plain language.",
+    emoji: "📎",
+    title: "Context from your docs",
+    body: "Upload past PDFs — balances, scope, history — and the AI writes follow-ups grounded in them.",
     bg: "bg-granite-100",
     ring: "text-granite-800",
     tilt: "-rotate-1",
@@ -54,15 +54,15 @@ const FEATURES = [
   {
     emoji: "🪄",
     title: "Nothing slips",
-    body: "Missing a name? A popup catches it.",
+    body: "Missing a client name or amount? A popup catches it before the document is built.",
     bg: "bg-bordeaux-100",
     ring: "text-bordeaux-700",
     tilt: "rotate-2",
   },
   {
-    emoji: "📤",
-    title: "CSV in & out",
-    body: "Bring your list, take it with you.",
+    emoji: "🧾",
+    title: "PDF out, data local",
+    body: "Print-ready PDF export. Clients and history stay in your browser — no accounts.",
     bg: "bg-jasmine-100",
     ring: "text-jasmine-800",
     tilt: "-rotate-2",
@@ -108,26 +108,27 @@ export default function Home() {
         <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center gap-12 px-6 pb-24 pt-4 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-jasmine-400/40 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-jasmine-200 backdrop-blur">
-              No signup · No backend · Your data stays yours
+              No signup · Free AI included · Your data stays yours
             </span>
             <h1 className="mt-6 text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl">
-              Invoices that
+              Client documents
               <br />
-              don&apos;t feel like{" "}
+              that don&apos;t feel like{" "}
               <span className="bg-linear-to-r from-jasmine-300 to-willow-300 bg-clip-text text-transparent">
                 paperwork.
               </span>
             </h1>
             <p className="mt-5 max-w-md text-lg text-jasmine-100/80">
-              Fill a form or just type a sentence. Get a beautiful PDF — right
-              in your browser.
+              Chat with AI to shape proposals, pricing breakdowns, follow-up
+              summaries, and invoices — then export a polished PDF. Upload past
+              docs for context.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="#workspace"
                 className="rounded-full bg-jasmine-400 px-7 py-3.5 text-sm font-bold text-bordeaux-950 shadow-xl shadow-bordeaux-950/40 transition hover:-translate-y-0.5 hover:bg-jasmine-300"
               >
-                Make an invoice
+                Create a document
               </Link>
               <a
                 href="#features"
@@ -148,7 +149,7 @@ export default function Home() {
               delay={3200}
               pauseOnHover
             >
-              {/* Minimal */}
+              {/* Proposal */}
               <Card className="bg-white! border-black/10! overflow-hidden text-bordeaux-950 shadow-2xl shadow-black/40">
                 <div className="flex items-start justify-between border-b-2 border-lobster-pink px-7 pb-5 pt-7">
                   <div>
@@ -156,33 +157,34 @@ export default function Home() {
                       Studio Nova
                     </p>
                     <p className="text-xs text-granite-500">
-                      hello@studionova.co
+                      Mobile App — Phase 2
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xl font-black tracking-widest text-granite">
-                      INVOICE
-                    </p>
-                    <p className="text-xs text-granite-500">INV-0142</p>
-                  </div>
+                  <p className="text-lg font-black tracking-widest text-granite">
+                    PROPOSAL
+                  </p>
                 </div>
                 <div className="space-y-3 px-7 py-6 text-sm">
                   <div className="flex justify-between border-b border-black/5 pb-2">
-                    <span className="text-granite-700">Brand identity</span>
-                    <span className="font-semibold">$2,400</span>
+                    <span className="text-granite-700">
+                      Phase 1 · Fixes & audit
+                    </span>
+                    <span className="font-semibold">₦1,000,000</span>
                   </div>
                   <div className="flex justify-between border-b border-black/5 pb-2">
-                    <span className="text-granite-700">Landing page</span>
-                    <span className="font-semibold">$1,150</span>
+                    <span className="text-granite-700">
+                      Phase 2 · Web store
+                    </span>
+                    <span className="font-semibold">₦2,000,000</span>
                   </div>
                   <div className="flex justify-between border-t-2 border-bordeaux-950 pt-3 text-base font-black text-granite">
-                    <span>Total</span>
-                    <span>$3,550</span>
+                    <span>Project total</span>
+                    <span>₦3,000,000</span>
                   </div>
                 </div>
               </Card>
 
-              {/* Modern */}
+              {/* Follow-up summary */}
               <Card className="bg-white! border-black/10! overflow-hidden text-bordeaux-950 shadow-2xl shadow-black/40">
                 <div className="flex items-center justify-between bg-night-bordeaux px-7 py-6 text-jasmine">
                   <div>
@@ -190,23 +192,25 @@ export default function Home() {
                       Pixel & Prose
                     </p>
                     <p className="text-[11px] text-jasmine-200">
-                      studio@pixelprose.io
+                      Engagement summary
                     </p>
                   </div>
-                  <p className="text-lg font-black tracking-[0.2em]">INVOICE</p>
+                  <p className="text-sm font-black tracking-[0.2em]">
+                    FOLLOW-UP
+                  </p>
                 </div>
                 <div className="space-y-3 px-7 py-6 text-sm">
                   <div className="flex justify-between border-b border-black/5 pb-2">
-                    <span className="text-granite-700">Illustration set</span>
-                    <span className="font-semibold">$1,800</span>
+                    <span className="text-granite-700">Total billed</span>
+                    <span className="font-semibold">$4,200</span>
                   </div>
                   <div className="flex justify-between border-b border-black/5 pb-2">
-                    <span className="text-granite-700">Motion loop</span>
-                    <span className="font-semibold">$900</span>
+                    <span className="text-granite-700">Paid to date</span>
+                    <span className="font-semibold">$2,500</span>
                   </div>
                   <div className="mt-2 flex items-center justify-between rounded-lg bg-willow-green px-4 py-3 font-black text-willow-950">
-                    <span>Total</span>
-                    <span>$2,700</span>
+                    <span>Outstanding</span>
+                    <span>$1,700</span>
                   </div>
                 </div>
               </Card>
@@ -277,8 +281,8 @@ export default function Home() {
             Your files, tucked in a folder.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm font-medium text-jasmine-200/80">
-            Every invoice you make or upload is kept right here on your device.
-            Nothing saved yet — click the folder to peek inside.
+            Every proposal, summary, and invoice you create is kept right here
+            on your device. Nothing saved yet — click the folder to peek inside.
           </p>
 
           <div className="mt-24 flex flex-col items-center gap-8">
@@ -294,7 +298,7 @@ export default function Home() {
 
       {/* Workspace */}
       <section id="workspace" className="relative px-4 pb-20 sm:px-8">
-        <div className="mx-auto w-full max-w-6xl">
+        <div className="mx-auto w-full max-w-7xl">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-3xl font-black tracking-tight text-bordeaux-950 sm:text-4xl">
               Your turn <span className="text-willow-500">→</span>
@@ -312,8 +316,9 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-bordeaux-950/10 bg-jasmine-50 px-6 py-8 text-center text-xs font-medium text-granite-700 sm:px-10">
-        Runs entirely in your browser. Your keys and clients never leave your
-        device.
+        Your documents, clients, and keys live in your browser. AI requests are
+        relayed through a stateless function straight to your chosen provider —
+        nothing is stored.
       </footer>
     </div>
   );
