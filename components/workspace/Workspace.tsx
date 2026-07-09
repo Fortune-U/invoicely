@@ -74,6 +74,9 @@ export default function Workspace() {
   const [current, setCurrent] = useState<SessionDoc | null>(null);
 
   useEffect(() => {
+    // Hydration-safe sync from browser-only localStorage: the server render
+    // (and first client render) show the loading gate, so no markup mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfile(loadProfile());
     setAiSettings(loadAiSettings() ?? FREE_SETTINGS);
     setReady(true);

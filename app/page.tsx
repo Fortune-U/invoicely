@@ -60,9 +60,9 @@ const FEATURES = [
     tilt: "rotate-2",
   },
   {
-    emoji: "🧾",
-    title: "PDF out, data local",
-    body: "Print-ready PDF export. Clients and history stay in your browser — no accounts.",
+    emoji: "🗂️",
+    title: "Session folder, zero storage",
+    body: "Files you generate live in a folder for the session — nothing is stored anywhere. Pick up later by re-attaching a PDF as context.",
     bg: "bg-jasmine-100",
     ring: "text-jasmine-800",
     tilt: "-rotate-2",
@@ -281,8 +281,9 @@ export default function Home() {
             Your files, tucked in a folder.
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm font-medium text-jasmine-200/80">
-            Every proposal, summary, and invoice you create is kept right here
-            on your device. Nothing saved yet — click the folder to peek inside.
+            Every proposal, summary, and invoice you generate lands in your
+            session folder — reopen any of them with a click. Nothing is stored
+            once you leave; bring a PDF back as context to continue.
           </p>
 
           <div className="mt-24 flex flex-col items-center gap-8">
@@ -316,7 +317,7 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-bordeaux-950/10 bg-jasmine-50 px-6 py-8 text-center text-xs font-medium text-granite-700 sm:px-10">
-        Your documents, clients, and keys live in your browser. AI requests are
+        Your documents and keys never leave your session. AI requests are
         relayed through a stateless function straight to your chosen provider —
         nothing is stored.
       </footer>
