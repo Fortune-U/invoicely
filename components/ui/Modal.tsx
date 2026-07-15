@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { X } from "lucide-react";
 
 export default function Modal({
   title,
@@ -40,7 +41,7 @@ export default function Modal({
             className="rounded-full px-2 py-1 text-sm text-granite hover:bg-black/5"
             aria-label="Close"
           >
-            ✕
+            <X aria-hidden="true" className="size-4" strokeWidth={2} />
           </button>
         </div>
         {children}

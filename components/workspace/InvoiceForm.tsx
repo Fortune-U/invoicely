@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { BusinessProfile, Client, InvoiceData, LineItem, TemplateId } from "../../lib/types";
 import { subtotal, taxAmount, grandTotal, formatCurrency } from "../../lib/templates/shared";
 import TemplatePicker from "./TemplatePicker";
+import { Plus, X } from "lucide-react";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -79,6 +80,25 @@ export default function InvoiceForm({
     const validItems = items.filter((it) => it.description.trim().length > 0);
     if (validItems.length === 0) {
       setError("Add at least one line item with a description.");
+      return;
+    }
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      setError("Currency must be a three-letter code such as USD or NGN.");
+      return;
+    }
+    if (!date || !dueDate || dueDate < date) {
+      setError("Choose valid dates; the due date cannot be before the invoice date.");
+      return;
+    }
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) {
+      setError("Tax rate must be between 0 and 100.");
+      return;
+    }
+    if (validItems.some((item) =>
+      !Number.isFinite(item.quantity) || item.quantity < 0 || item.quantity > 1_000_000 ||
+      !Number.isFinite(item.rate) || item.rate < 0 || item.rate > 1_000_000_000
+    )) {
+      setError("Line-item quantities or rates are outside the supported range.");
       return;
     }
 
@@ -217,6 +237,7 @@ export default function InvoiceForm({
               <input
                 type="number"
                 min={0}
+                max={1000000}
                 step="any"
                 value={item.quantity}
                 onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })}
@@ -225,6 +246,7 @@ export default function InvoiceForm({
               <input
                 type="number"
                 min={0}
+                max={1000000000}
                 step="any"
                 value={item.rate}
                 onChange={(e) => updateItem(item.id, { rate: Number(e.target.value) })}
@@ -236,7 +258,7 @@ export default function InvoiceForm({
                 className="px-1 text-xs text-lobster-pink"
                 aria-label="Remove line item"
               >
-                ✕
+                <X aria-hidden="true" className="size-3.5" strokeWidth={2} />
               </button>
             </div>
           ))}
@@ -246,7 +268,10 @@ export default function InvoiceForm({
           onClick={addItem}
           className="mt-2 text-xs font-medium text-lobster-pink hover:underline"
         >
-          + Add line item
+          <span className="inline-flex items-center gap-1">
+            <Plus aria-hidden="true" className="size-3.5" strokeWidth={2} />
+            Add line item
+          </span>
         </button>
       </fieldset>
 
@@ -256,6 +281,7 @@ export default function InvoiceForm({
           <input
             type="number"
             min={0}
+            max={100}
             step="any"
             value={taxRate}
             onChange={(e) => setTaxRate(Number(e.target.value))}

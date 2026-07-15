@@ -1,9 +1,19 @@
 import Link from "next/link";
+import Image from "next/image";
 import Workspace from "../components/workspace/Workspace";
 import PlasmaWave from "../components/PlasmaWave";
 import type { ComponentType, ReactNode } from "react";
 import CardSwap, { Card as CardImpl } from "../components/CardSwap";
 import FolderImpl from "../components/Folder";
+import {
+  ArrowRight,
+  BadgeDollarSign,
+  Files,
+  FolderOpen,
+  ListChecks,
+  MessageSquare,
+  Paperclip,
+} from "lucide-react";
 
 // These reactbits components are authored in JS; their inferred prop types are too
 // narrow (forwardRef drops props; `items = []` infers never[]), so we give them shapes.
@@ -20,7 +30,7 @@ const Folder = FolderImpl as unknown as ComponentType<{
 
 const FEATURES = [
   {
-    emoji: "💬",
+    icon: MessageSquare,
     title: "Chat it into shape",
     body: "Talk through scope, steps, and pricing with AI — then generate the document from the whole conversation.",
     bg: "bg-jasmine-100",
@@ -28,7 +38,7 @@ const FEATURES = [
     tilt: "-rotate-2",
   },
   {
-    emoji: "📑",
+    icon: Files,
     title: "Four document types",
     body: "Proposals, pricing & scope breakdowns, follow-up summaries, and invoices.",
     bg: "bg-lobster-100",
@@ -36,7 +46,7 @@ const FEATURES = [
     tilt: "rotate-1",
   },
   {
-    emoji: "🆓",
+    icon: BadgeDollarSign,
     title: "Free AI built in",
     body: "No tokens? No problem — a free, keyless model works out of the box. Or paste your own key.",
     bg: "bg-willow-100",
@@ -44,7 +54,7 @@ const FEATURES = [
     tilt: "rotate-2",
   },
   {
-    emoji: "📎",
+    icon: Paperclip,
     title: "Context from your docs",
     body: "Upload past PDFs — balances, scope, history — and the AI writes follow-ups grounded in them.",
     bg: "bg-granite-100",
@@ -52,7 +62,7 @@ const FEATURES = [
     tilt: "-rotate-1",
   },
   {
-    emoji: "🪄",
+    icon: ListChecks,
     title: "Nothing slips",
     body: "Missing a client name or amount? A popup catches it before the document is built.",
     bg: "bg-bordeaux-100",
@@ -60,7 +70,7 @@ const FEATURES = [
     tilt: "rotate-2",
   },
   {
-    emoji: "🗂️",
+    icon: FolderOpen,
     title: "Session folder, zero storage",
     body: "Files you generate live in a folder for the session — nothing is stored anywhere. Pick up later by re-attaching a PDF as context.",
     bg: "bg-jasmine-100",
@@ -92,23 +102,28 @@ export default function Home() {
 
         <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-9 sm:px-10 sm:py-11">
           <span className="flex items-center gap-2.5 text-2xl font-black tracking-tight">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-jasmine-400 text-lg text-bordeaux-950">
-              i
-            </span>
+            <Image
+              src="/brand/invoicely-mark.png"
+              alt=""
+              width={36}
+              height={36}
+              className="rounded-xl"
+            />
             Invoicely
           </span>
           <Link
             href="#workspace"
-            className="rounded-full bg-jasmine-400 px-6 py-3 text-sm font-bold text-bordeaux-950 shadow-lg shadow-bordeaux-950/30 transition hover:-translate-y-0.5 hover:bg-jasmine-300"
+            className="inline-flex items-center gap-2 rounded-full bg-jasmine-400 px-6 py-3 text-sm font-bold text-bordeaux-950 shadow-lg shadow-bordeaux-950/30 transition hover:-translate-y-0.5 hover:bg-jasmine-300"
           >
-            Open workspace →
+            Open workspace
+            <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2} />
           </Link>
         </header>
 
         <div className="relative mx-auto grid w-full max-w-6xl flex-1 content-center gap-12 px-6 pb-24 pt-4 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-jasmine-400/40 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-jasmine-200 backdrop-blur">
-              No signup · Free AI included · Your data stays yours
+              No signup · Free AI included · You choose the AI provider
             </span>
             <h1 className="mt-6 text-5xl font-black leading-[1.05] tracking-tight sm:text-6xl">
               Client documents
@@ -259,15 +274,17 @@ export default function Home() {
           <span className="text-lobster-500">Nothing you don&apos;t.</span>
         </h2>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
+          {FEATURES.map(({ icon: Icon, ...feature }) => (
             <div
-              key={f.title}
-              className={`${f.bg} ${f.tilt} rounded-3xl p-6 shadow-sm transition hover:rotate-0 hover:-translate-y-1 hover:shadow-xl`}
+              key={feature.title}
+              className={`${feature.bg} ${feature.tilt} rounded-3xl p-6 shadow-sm transition hover:rotate-0 hover:-translate-y-1 hover:shadow-xl`}
             >
-              <div className="mb-3 text-3xl">{f.emoji}</div>
-              <h3 className={`text-lg font-black ${f.ring}`}>{f.title}</h3>
+              <div className={`mb-4 inline-flex size-9 items-center justify-center rounded-full border border-current/15 bg-white/45 ${feature.ring}`}>
+                <Icon aria-hidden="true" className="size-4.5" strokeWidth={1.8} />
+              </div>
+              <h3 className={`text-lg font-black ${feature.ring}`}>{feature.title}</h3>
               <p className="mt-1 text-sm font-medium text-granite-800">
-                {f.body}
+                {feature.body}
               </p>
             </div>
           ))}
@@ -302,10 +319,10 @@ export default function Home() {
         <div className="mx-auto w-full max-w-7xl">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-3xl font-black tracking-tight text-bordeaux-950 sm:text-4xl">
-              Your turn <span className="text-willow-500">→</span>
+              Your turn
             </h2>
             <p className="text-sm font-medium text-granite-700">
-              Everything below runs locally. No account required.
+              Documents stay in this tab; AI requests go to your selected provider.
             </p>
           </div>
           <div className="overflow-hidden rounded-[2rem] bg-linear-to-br from-bordeaux-900 via-lobster-700 to-jasmine-400 p-1.5 shadow-2xl shadow-bordeaux-950/20">
@@ -317,9 +334,9 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-bordeaux-950/10 bg-jasmine-50 px-6 py-8 text-center text-xs font-medium text-granite-700 sm:px-10">
-        Your documents and keys never leave your session. AI requests are
-        relayed through a stateless function straight to your chosen provider —
-        nothing is stored.
+        Generated files stay in this tab. Prompts and attached document text are
+        sent to your selected AI provider; provider keys are relayed per request
+        and kept in memory only.
       </footer>
     </div>
   );

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { injectDesignCss } from "./docCss";
+import { sanitizeDocumentHtml } from "../sanitizeHtml";
 
 const NeedsInfoSchema = z.object({
   status: z.literal("needs_info"),
@@ -160,7 +161,13 @@ export function parseAiResponse(raw: string): AiResponse {
     if (data.status === "needs_info") return data;
 
     const html = data.html ? unescapeJsonArtifacts(data.html) : fencedHtml;
-    if (html) return { status: "ready", html: injectDesignCss(html), meta: data.meta };
+    if (html) {
+      return {
+        status: "ready",
+        html: sanitizeDocumentHtml(injectDesignCss(html)),
+        meta: data.meta,
+      };
+    }
 
     // "ready" but no document anywhere — treat as a broken reply.
     throw new AiResponseParseError(raw);
@@ -168,10 +175,12 @@ export function parseAiResponse(raw: string): AiResponse {
 
   // No usable JSON: a fenced or bare HTML document alone is still a success.
   if (fencedHtml) {
-    const html = injectDesignCss(fencedHtml);
+    const html = sanitizeDocumentHtml(injectDesignCss(fencedHtml));
     return { status: "ready", html, meta: { title: titleOf(html) } };
   }
   const salvaged = salvageHtml(raw);
-  if (salvaged) return { ...salvaged, html: injectDesignCss(salvaged.html) };
+  if (salvaged) {
+    return { ...salvaged, html: sanitizeDocumentHtml(injectDesignCss(salvaged.html)) };
+  }
   throw new AiResponseParseError(raw);
 }

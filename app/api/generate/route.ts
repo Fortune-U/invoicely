@@ -11,16 +11,45 @@ import { z } from "zod";
 
 const BodySchema = z.object({
   provider: z.enum(["pollinations", "anthropic", "openai", "gemini", "grok", "openrouter"]),
-  apiKey: z.string().default(""),
-  model: z.string().min(1),
-  system: z.string(),
+  apiKey: z.string().max(512).default(""),
+  model: z.string().min(1).max(120),
+  system: z.string().max(60_000),
   messages: z.array(
     z.object({
       role: z.enum(["user", "assistant"]),
-      content: z.string(),
+      content: z.string().max(30_000),
     })
-  ),
-});
+  ).max(80),
+}).strict();
+
+const MAX_BODY_BYTES = 350_000;
+const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT = 12;
+const REQUEST_TIMEOUT_MS = 90_000;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function clientId(request: Request): string {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || request.headers.get("x-real-ip")
+    || "unknown";
+}
+
+function isRateLimited(request: Request): boolean {
+  const now = Date.now();
+  const id = clientId(request);
+  const current = rateBuckets.get(id);
+  if (!current || current.resetAt <= now) {
+    rateBuckets.set(id, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    if (rateBuckets.size > 5_000) {
+      for (const [key, bucket] of rateBuckets) {
+        if (bucket.resetAt <= now) rateBuckets.delete(key);
+      }
+    }
+    return false;
+  }
+  current.count += 1;
+  return current.count > RATE_LIMIT;
+}
 
 // text.pollinations.ai is IPv6-only in DNS; many networks (and some serverless
 // runtimes) have no IPv6 route, so a plain fetch dies with ENOTFOUND. Fallback:
@@ -43,12 +72,13 @@ async function pollinationsIpv4(): Promise<string[]> {
   return ips;
 }
 
-async function pollinationsFetch(body: string): Promise<Response> {
+async function pollinationsFetch(body: string, signal: AbortSignal): Promise<Response> {
   const url = "https://text.pollinations.ai/openai";
   const init = {
     method: "POST",
     headers: { "content-type": "application/json" },
     body,
+    signal,
   };
   try {
     return await fetch(url, init);
@@ -80,14 +110,16 @@ async function pollinationsFetch(body: string): Promise<Response> {
 async function callPollinations(
   system: string,
   messages: { role: string; content: string }[],
-  model: string
+  model: string,
+  signal: AbortSignal
 ): Promise<string> {
   const res = await pollinationsFetch(
     JSON.stringify({
       model: model || "openai",
       max_tokens: 8000,
       messages: [{ role: "system", content: system }, ...messages],
-    })
+    }),
+    signal
   );
   if (!res.ok) {
     throw new Error(
@@ -106,18 +138,38 @@ async function callPollinations(
 }
 
 export async function POST(request: Request) {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) {
+    return Response.json({ error: "Cross-origin requests are not allowed." }, { status: 403 });
+  }
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_BODY_BYTES) {
+    return Response.json({ error: "Request body is too large." }, { status: 413 });
+  }
+  if (isRateLimited(request)) {
+    return Response.json(
+      { error: "Too many AI requests. Please wait a minute and try again." },
+      { status: 429, headers: { "retry-after": "60" } }
+    );
+  }
+
   let body: z.infer<typeof BodySchema>;
   try {
-    body = BodySchema.parse(await request.json());
+    const raw = await request.text();
+    if (new TextEncoder().encode(raw).byteLength > MAX_BODY_BYTES) {
+      return Response.json({ error: "Request body is too large." }, { status: 413 });
+    }
+    body = BodySchema.parse(JSON.parse(raw));
   } catch {
     return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const { provider, apiKey, model, system, messages } = body;
+  const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 
   try {
     if (provider === "pollinations") {
-      const text = await callPollinations(system, messages, model);
+      const text = await callPollinations(system, messages, model, signal);
       return Response.json({ text });
     }
 
@@ -153,14 +205,19 @@ export async function POST(request: Request) {
       messages,
       // Full HTML documents are long; a low default cap truncates them mid-tag.
       maxOutputTokens: 8192,
+      abortSignal: signal,
     });
 
     return Response.json({ text });
   } catch (err) {
-    const message =
-      err instanceof Error
-        ? err.message
-        : "The AI provider request failed. Check your key and model name.";
-    return Response.json({ error: message }, { status: 502 });
+    const timedOut = err instanceof Error && err.name === "TimeoutError";
+    return Response.json(
+      {
+        error: timedOut
+          ? "The AI provider took too long to respond. Please try again."
+          : "The AI provider request failed. Check your key and model name.",
+      },
+      { status: timedOut ? 504 : 502 }
+    );
   }
 }

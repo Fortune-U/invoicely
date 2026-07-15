@@ -1,10 +1,11 @@
-import { jsPDF } from "jspdf";
+import { sanitizeDocumentHtml } from "./sanitizeHtml";
 
 // Direct .pdf download via jsPDF's html rasterizer. Fails on some modern CSS
 // (html2canvas limitation) — callers surface that error and point users to
 // printHtml() below, which always works.
 export function exportHtmlToPdf(html: string, filename: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    const safeHtml = sanitizeDocumentHtml(html);
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
     iframe.style.left = "-10000px";
@@ -51,11 +52,10 @@ export function exportHtmlToPdf(html: string, filename: string): Promise<void> {
         return;
       }
 
-      const pdf = new jsPDF("p", "pt", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const sourceWidth = body.scrollWidth || 800;
-
-      try {
+      void import("jspdf").then(({ jsPDF }) => {
+        const pdf = new jsPDF("p", "pt", "a4");
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const sourceWidth = body.scrollWidth || 800;
         pdf
           .html(body, {
             width: pageWidth,
@@ -69,12 +69,13 @@ export function exportHtmlToPdf(html: string, filename: string): Promise<void> {
             resolve();
           })
           .catch(() => fail());
-      } catch {
-        fail();
-      }
+      }).catch(fail);
     };
 
-    iframe.srcdoc = html;
+    // Scripts are disabled even after sanitization (defense in depth). Same-origin
+    // is required so jsPDF can read the rendered document.
+    iframe.sandbox.add("allow-same-origin");
+    iframe.srcdoc = safeHtml;
   });
 }
 
@@ -82,12 +83,14 @@ export function exportHtmlToPdf(html: string, filename: string): Promise<void> {
 // so the print dialog can never leave the app in a frozen "printing" state
 // (which is what happens when printing from a hidden same-window iframe).
 export function printHtml(html: string): void {
-  const win = window.open("", "_blank", "noopener=false");
+  const safeHtml = sanitizeDocumentHtml(html);
+  const win = window.open("", "_blank");
   if (!win) {
     throw new Error("Your browser blocked the print window — allow pop-ups for this site.");
   }
+  win.opener = null;
   win.document.open();
-  win.document.write(html);
+  win.document.write(safeHtml);
   win.document.close();
 
   const doPrint = () => {

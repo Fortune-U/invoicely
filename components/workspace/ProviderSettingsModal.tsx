@@ -56,7 +56,7 @@ export default function ProviderSettingsModal({
         <p className="text-xs leading-relaxed text-granite">
           {keyless
             ? "No key needed for the community provider. For dependable free usage, Gemini's free tier or OpenRouter's free models (with a free key) are the better path."
-            : "Your key is stored only in this browser and relayed per-request through a stateless function to the provider you choose. It's never saved or logged anywhere."}
+            : "Your key stays in memory for this tab and is relayed per request through a stateless function to the provider you choose. You will need to re-enter it after refreshing or closing the page."}
         </p>
 
         <div>

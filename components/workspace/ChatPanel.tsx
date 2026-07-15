@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import { FileOutput, Paperclip } from "lucide-react";
 import { DOC_TYPES, type ChatMessage, type DocContext, type DocType } from "../../lib/types";
 
 interface ParsedAssistant {
@@ -159,7 +160,14 @@ export default function ChatPanel({
             disabled={contextBusy}
             className="rounded-full border border-dashed border-lobster-pink/60 px-3 py-1 text-xs font-medium text-lobster-pink hover:bg-lobster-pink/5 disabled:opacity-50"
           >
-            {contextBusy ? "Reading…" : "+ Add context (PDF / text)"}
+            {contextBusy ? (
+              "Reading…"
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Paperclip aria-hidden="true" className="size-3.5" strokeWidth={2} />
+                Add context (PDF / text)
+              </span>
+            )}
           </button>
           <input
             ref={fileRef}
@@ -180,7 +188,10 @@ export default function ChatPanel({
                 key={`${c.name}-${i}`}
                 className="flex items-center justify-between rounded-md bg-willow-100 px-2 py-1 text-xs text-granite-800"
               >
-                <span className="truncate">📎 {c.name}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Paperclip aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={2} />
+                  <span className="truncate">{c.name}</span>
+                </span>
                 <button
                   type="button"
                   onClick={() => onRemoveContext(i)}
@@ -295,9 +306,14 @@ export default function ChatPanel({
         disabled={busy || messages.length === 0}
         className="mt-3 w-full rounded-full bg-night-bordeaux px-5 py-3 text-sm font-bold text-jasmine transition hover:bg-[#3a0416] disabled:opacity-40"
       >
-        {generating
-          ? "Generating…"
-          : `⚡ Generate ${activeDoc?.label.toLowerCase()} from this chat`}
+        {generating ? (
+          "Generating…"
+        ) : (
+          <span className="inline-flex items-center justify-center gap-2">
+            <FileOutput aria-hidden="true" className="size-4" strokeWidth={2} />
+            Generate {activeDoc?.label.toLowerCase()} from this chat
+          </span>
+        )}
       </button>
     </div>
   );

@@ -39,6 +39,7 @@ const FREE_SETTINGS: AiSettings = {
   apiKey: "",
   model: "gpt-4o-mini",
 };
+const MAX_CONTEXT_FILES = 5;
 
 type Mode = "ai" | "manual";
 
@@ -96,10 +97,21 @@ export default function Workspace() {
     setContextBusy(true);
     setContextError(null);
     try {
-      const results = await Promise.all(
-        Array.from(files).map((f) => extractContext(f))
+      const available = Math.max(0, MAX_CONTEXT_FILES - contexts.length);
+      if (available === 0) throw new Error(`You can attach up to ${MAX_CONTEXT_FILES} files.`);
+      const selected = Array.from(files).slice(0, available);
+      const settled = await Promise.allSettled(selected.map((file) => extractContext(file)));
+      const successful = settled.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : []
       );
-      setContexts((prev) => [...prev, ...results]);
+      const failures = settled.flatMap((result) =>
+        result.status === "rejected"
+          ? [result.reason instanceof Error ? result.reason.message : "A file could not be read."]
+          : []
+      );
+      setContexts((prev) => [...prev, ...successful].slice(0, MAX_CONTEXT_FILES));
+      if (files.length > available) failures.push(`Only the first ${available} file(s) were accepted.`);
+      if (failures.length) setContextError(failures.join(" "));
     } catch (err) {
       setContextError(
         err instanceof Error ? err.message : "Couldn't read that file."
